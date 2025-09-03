@@ -8,12 +8,14 @@
 
 ## 環境について
 python使って実装しています。
-'''argparse 
-requests
-networkx
-pyvis.network
-json
-tqdm'''
+
+argparse , 
+requests, 
+networkx, 
+pyvis.network, 
+json, 
+tqdm, 
+
 をimportしています。必要に応じてpipなどで環境を用意してください。
 
 # このレポジトリの作者について
