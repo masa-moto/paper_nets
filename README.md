@@ -20,9 +20,9 @@ tqdm,
 
 ## まず初めに
 ### mockup_1.pyを実行する
-python3 mockup_1.py --doi <your-doi>
+python3 mockup_1.py --doi your-doi
 
-を実行すると<your-doi>の引用・被引用文献について探索した結果の一部を有向グラフとしてgraph.htmlに保存します。
+を実行すると your-doi の引用・被引用文献について探索した結果の一部を有向グラフとしてgraph.htmlに保存します。
 
 # このレポジトリの作者について
 「ネットワーク科学」や、「フラクタル」をキーワードとする大学院生です。
