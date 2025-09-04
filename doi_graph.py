@@ -4,7 +4,7 @@ import networkx as nx
 from pyvis.network import Network
 import json
 from tqdm import tqdm
-
+import yaml
 # -------------------------------
 # 1. Crossrefからメタ情報取得
 # -------------------------------
@@ -95,6 +95,19 @@ def build_graph(start_doi, depth=1):
 # 5. 可視化
 # -------------------------------
 def visualize_graph(G, output_html):
+    # net = Network(notebook=False, cdn_resources="remote", directed=True)
+    # for node, data in G.nodes(data=True):
+    #     label = f"{data.get('authors', [''])[0]} et al., {data.get('year', '')}"
+    #     color = "yellow" if data.get("highlight") else "lightblue"
+    #     net.add_node(node, label=label, title=data.get("title", ""), color=color)
+    # for u, v in G.edges():
+    #     net.add_edge(u, v)
+    # net.write_html(output_html)
+    visualize_with_sidebar(G, output_html)
+
+from jinja2 import Template
+
+def visualize_with_sidebar(G, output_html):
     net = Network(notebook=False, cdn_resources="remote", directed=True)
     for node, data in G.nodes(data=True):
         label = f"{data.get('authors', [''])[0]} et al., {data.get('year', '')}"
@@ -102,7 +115,39 @@ def visualize_graph(G, output_html):
         net.add_node(node, label=label, title=data.get("title", ""), color=color)
     for u, v in G.edges():
         net.add_edge(u, v)
-    net.write_html(output_html)
+
+    graph_html = net.generate_html()
+
+    template = """
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Paper Network</title>
+    </head>
+    <body>
+    <div style="display:flex; height:100vh;">
+      <div style="flex:2; border-right:1px solid #ccc;">
+        {{ graph_html|safe }}
+      </div>
+      <div style="flex:1; padding:1em; overflow-y:scroll;">
+        <h2>References</h2>
+        <ul>
+        {% for doi, data in nodes %}
+          <li>
+            <b>{{ data.title }}</b> ({{ data.year }})<br>
+            {{ data.authors|join(", ") }}<br>
+            <a href="https://doi.org/{{ doi }}">{{ doi }}</a>
+          </li>
+        {% endfor %}
+        </ul>
+      </div>
+    </div>
+    </body>
+    </html>
+    """
+    html = Template(template).render(graph_html=graph_html, nodes=G.nodes(data=True))
+    with open(output_html, "w", encoding="utf-8") as f:
+        f.write(html)
 
 # -------------------------------
 # 6. 保存 (JSON)
@@ -118,6 +163,33 @@ def save_as_json(G, output_json):
     }
     with open(output_json, "w") as f:
         json.dump(data, f, indent=2)
+# -------------------------------
+# YAMLに保存
+# -------------------------------
+def save_as_yaml(G, output_yaml):
+    data = {
+        "nodes": [
+            {"id": n, **d} for n, d in G.nodes(data=True)
+        ],
+        "edges": [
+            {"source": u, "target": v} for u, v in G.edges()
+        ]
+    }
+    with open(output_yaml, "w") as f:
+        yaml.dump(data, f, allow_unicode=True)
+# -------------------------------
+# 既存graphデータを読み込み
+# -------------------------------
+def load_from_json(input_json):
+    with open(input_json, "r") as f:
+        data = json.load(f)
+    G = nx.DiGraph()
+    for node in data["nodes"]:
+        node_id = node.pop("id")
+        G.add_node(node_id, **node)
+    for edge in data["edges"]:
+        G.add_edge(edge["source"], edge["target"])
+    return G
 
 # -------------------------------
 # メイン
@@ -128,12 +200,16 @@ if __name__ == "__main__":
     parser.add_argument("--depth", type=int, default=1, help="探索の深さ (default=1)")
     parser.add_argument("--html", default="graph.html", help="出力HTMLファイル名")
     parser.add_argument("--json", default="graph.json", help="出力JSONファイル名")
+    parser.add_argument("--yaml", default="graph.yaml", help="出力YAMLファイル名")
+    parser.add_argument("--resume", default="graph.json", help="入力JSONファイル名")
+    
     args = parser.parse_args()
 
     print(f"[INFO] DOI={args.doi}, depth={args.depth}")
     G = build_graph(args.doi, depth=args.depth)
     print("graph builded.")
-    print(f"[INFO] Saving graph to {args.html} and {args.json}")
+    print(f"[INFO] Saving graph to {args.html}, {args.json} and {args.yaml}")
     visualize_graph(G, args.html)
     save_as_json(G, args.json)
+    save_as_yaml(G, args.yaml)
     print("[INFO] Done.")

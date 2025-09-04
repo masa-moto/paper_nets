@@ -1,6 +1,10 @@
 /.myenv
 /__pycache__
+/*.html
+/*.yaml
+/*.json
 /graph.html
+/graph.yaml
 /graph.json
 /lib
 /test.ipynb
