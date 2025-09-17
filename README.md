@@ -20,16 +20,17 @@ tqdm,
 
 ## 使い方
 ### async_doi_graph.pyを実行する
-
+```
 python3 async_doi_graph.py --doi your-doi
-
+```
 を実行することでgraph.htmlを出力します。ブラウザなどでこのhtmlファイルを眺めると、文献の引用/被引用の情報がグラフ構造として確認できます。
 
 一度実行した際にキャッシュとしてJSONファイルをいくつか出力します。これを利用してAPIの呼び出しなどを最小化したり探索を効率化できます。
 
 JSONを読み込んで実行するには
-
+```
 python3 async_doi_graph.py --doi your-doi --resume graph.json --cite cites_cache.json --meta meta_cache.json
+```
 
 等としてください。
 
