@@ -34,6 +34,10 @@ python3 async_doi_graph.py --doi your-doi --resume graph.json --cite cites_cache
 
 等としてください。
 
+うまくいけば、こんな感じのページを得るはずです。
+<img width="1460" height="680" alt="image" src="https://github.com/user-attachments/assets/48530542-11a8-4f1c-8ae9-53ab4a4cd6f2" />
+
+
 ### オプション変数など
 いくつかのオプション変数を受け付けるようにしています。以下で詳説します
 
