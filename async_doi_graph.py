@@ -317,7 +317,20 @@ def visualize_with_sidebar(G, output_html = "graph.html"):
     html = Template(template).render(graph_html=graph_html, nodes=G.nodes(data=True))
     with open(output_html, "w", encoding="utf-8") as f:
         f.write(html)
-
+        
+def save_as_yaml(G, output_yaml):
+    import yaml
+    data = {
+        "nodes": [
+            {"id": n, **d} for n, d in G.nodes(data=True)
+        ],
+        "edges": [
+            {"source": u, "target": v} for u, v in G.edges()
+        ]
+    }
+    with open(output_yaml, "w") as f:
+        yaml.dump(data, f, allow_unicode=True)
+        
 def save_as_json(G, output_json):
     data = {
         "nodes": [
@@ -363,6 +376,7 @@ async def async_main_example():
                                     G = G)
     print("nodes:", len(G.nodes), "edges:", len(G.edges))
     save_cache()  # 必要なら保存
+    save_as_yaml(G, output_yaml=args.yaml)
     save_as_json(G, output_json=args.json)
     visualize_graph(G, output_html="graph.html")
     print("elapsed:", time.time() - start)
