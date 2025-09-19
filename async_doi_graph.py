@@ -150,7 +150,7 @@ async def bfs_build_graph_async(start_doi: str,
                                 concurrency: int = DEFAULT_CONCURRENCY,
                                 max_per_node_refs: int = 10,
                                 max_per_node_cites: int = 10,
-                                max_total_nodes: int = 1000,
+                                max_total_nodes: int = 1500,
                                 G:nx.DiGraph = None) -> nx.DiGraph:
     """
     BFSで各レベルを並列取得して NetworkX の DiGraph を返す。
@@ -218,6 +218,9 @@ async def bfs_build_graph_async(start_doi: str,
                     roles = G.nodes[doi].get("roles", [])
                     roles.append((role, from_doi))
                     G.nodes[doi]["roles"] = roles
+                    if role == "input":
+                        G.nodes[doi]["highlight"] = True
+                        
 
                 # エッジは parent->child (reference) or child->parent (citation)
                 if (role == "reference" and from_doi) and not G.has_edge(from_doi, doi):
@@ -280,7 +283,7 @@ def visualize_with_sidebar(G, output_html = "graph.html"):
             first_author = "Unknown"
         label = f"{first_author}, {data.get('year', '')}"
         color = "green" if data.get("highlight") else "lightblue"
-        title = f"{data.get('title', '')} <br> Role: {data.get('role', '')}"
+        title = f"{data.get('title', '')} "#<br> Role: {data.get('role', '')}"
         net.add_node(node, label=label, title=title, color=color)
     for u, v in G.edges():
         net.add_edge(u, v)
@@ -294,7 +297,7 @@ def visualize_with_sidebar(G, output_html = "graph.html"):
       <title>Paper Network</title>
     </head>
     <body>
-    <div style="display:flex; height:100vh;">
+    <div style="display:flex; height:200vh;">
       <div style="flex:2; border-right:1px solid #ccc;">
         {{ graph_html|safe }}
       </div>
@@ -350,7 +353,7 @@ async def async_main_example():
     parser = argparse.ArgumentParser(description="文献ネットワーク可視化ツール")
     parser.add_argument("--doi", required=True, help="起点となるDOI")
     parser.add_argument("--concurrency", default = 5, help = "最大非同期処理プロセス数. default:5")
-    parser.add_argument("--max_deg", default = 10, help = "文献当たりの cite/ref 最大探索文献数. default:5")
+    parser.add_argument("--max_deg", default = 10, type = int,help = "文献当たりの cite/ref 最大探索文献数. default:5")
     parser.add_argument("--depth", type=int, default=1, help="探索の深さ default:1")
     parser.add_argument("--html", default="graph.html", help="出力HTMLファイル名")
     parser.add_argument("--json", default="graph.json", help="出力JSONファイル名")
@@ -374,12 +377,12 @@ async def async_main_example():
                                     max_per_node_refs=args.max_deg,
                                     max_per_node_cites=args.max_deg,
                                     G = G)
-    print("nodes:", len(G.nodes), "edges:", len(G.edges))
-    save_cache()  # 必要なら保存
+    print(f"[INFO] Graph informations nodes:{len(G.nodes)}, edges:{len(G.edges)}")
+    save_cache(path_meta= args.meta, path_cites= args.cites)  # 必要なら保存
     save_as_yaml(G, output_yaml=args.yaml)
     save_as_json(G, output_json=args.json)
     visualize_graph(G, output_html="graph.html")
-    print("elapsed:", time.time() - start)
+    print("[INFO] Elapsed time:", time.time() - start)
     
 
 

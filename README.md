@@ -58,5 +58,5 @@ python3 async_doi_graph.py --doi your-doi --resume graph.json --cite cites_cache
 
 "--cites": 入力JSONファイル名 (cites情報)。resume用。--resumeを使用する場合はこちらも指定してください。
 
-# このレポジトリの作者について
+## このレポジトリの作者について
 「ネットワーク科学」や、「フラクタル」をキーワードとする大学院生です。
