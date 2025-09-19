@@ -58,5 +58,7 @@ python3 async_doi_graph.py --doi your-doi --resume graph.json --cite cites_cache
 
 "--cites": 入力JSONファイル名 (cites情報)。resume用。--resumeを使用する場合はこちらも指定してください。
 
+"--bibtex-out": 出力bibtexファイル名。title, author,journal, year, doiを含むbibtexファイルを作成するときのファイル名を指定します。
+
 ## このレポジトリの作者について
 「ネットワーク科学」や、「フラクタル」をキーワードとする大学院生です。

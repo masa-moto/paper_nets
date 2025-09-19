@@ -346,9 +346,36 @@ def save_as_json(G, output_json):
     with open(output_json, "w") as f:
         json.dump(data, f, indent=2)
 
+def node_to_bibtex(node_id, data):
+    """ノードのメタデータ(dict)を BibTeX エントリに変換"""
+    key = node_id.replace("/", "_")  # doiをキーにするが記号を回避
+    authors = " and ".join(data.get("authors", [])) if data.get("authors") else "Unknown"
+    title = data.get("title", "Unknown Title")
+    journal = data.get("journal", "Unknown Journal")
+    year = data.get("year", "????")
+    doi = data.get("doi", node_id)
+
+    return f"""@article{{{key},
+  title   = {{{title}}},
+  author  = {{{authors}}},
+  journal = {{{journal}}},
+  year    = {{{year}}},
+  doi     = {{{doi}}},
+}}"""
+
+def export_bibtex(G: nx.DiGraph, out_file: str):
+    """グラフのノードから BibTeX ファイルを作成"""
+    entries = []
+    for node_id, data in G.nodes(data=True):
+        entries.append(node_to_bibtex(node_id, data))
+    with open(out_file, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(entries))
+    print(f"[INFO] BibTeX exported to {out_file}")
+
 # ---------- 実例実行 ----------
 import argparse
 import os 
+
 async def async_main_example():
     parser = argparse.ArgumentParser(description="文献ネットワーク可視化ツール")
     parser.add_argument("--doi", required=True, help="起点となるDOI")
@@ -361,6 +388,7 @@ async def async_main_example():
     parser.add_argument("--resume", default=None, help="入力JSONファイル名 (グラフ構造)")
     parser.add_argument("--meta", default="meta.json", help="入力JSONファイル名 (meta情報)")
     parser.add_argument("--cites", default="cites.json", help="入力JSONファイル名 (cites情報)")
+    parser.add_argument("--bibtex-out", default=None, help="出力bibtexファイル名")
     args = parser.parse_args()
     if args.cites and args.meta:
         load_cache(path_cites=args.cites, path_meta=args.meta)  # 必要なら前回のキャッシュを読み込む
@@ -381,7 +409,11 @@ async def async_main_example():
     save_cache(path_meta= args.meta, path_cites= args.cites)  # 必要なら保存
     save_as_yaml(G, output_yaml=args.yaml)
     save_as_json(G, output_json=args.json)
+    if args.bibtex_out:
+        export_bibtex(G, args.bibtex_out)
+            
     visualize_graph(G, output_html="graph.html")
+    
     print("[INFO] Elapsed time:", time.time() - start)
     
 
