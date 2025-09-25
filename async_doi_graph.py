@@ -66,7 +66,7 @@ async def _http_get_json(session: aiohttp.ClientSession, url: str, timeout_s=REQ
                 # print(f"[WARN] HTTP {resp.status} for {url}")
                 return None
     except Exception as e:
-        # print(f"[ERROR] request failed {url} : {e}")
+        print(f"[ERROR] request failed {url} : {e}")
         return None
 
 
@@ -129,6 +129,7 @@ async def fetch_citations_async(session: aiohttp.ClientSession, doi: str,
                 # data は list of dict 各要素に "citing" 等がある
                 result = [d.get("citing") for d in data if "citing" in d][:max_citations]
                 cites_cache[doi_lower] = result
+                print(f"[INFO]:{url}")
                 return result
             else:
                 await asyncio.sleep(backoff)
