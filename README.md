@@ -11,6 +11,8 @@
 ## 環境について
 python使って実装しています。
 
+Python 3.11以上が必要です。
+
 argparse , 
 requests, 
 networkx, 
