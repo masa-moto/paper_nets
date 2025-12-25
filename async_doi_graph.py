@@ -332,7 +332,7 @@ def save_as_yaml(G, output_yaml):
             {"source": u, "target": v} for u, v in G.edges()
         ]
     }
-    with open(output_yaml, "w") as f:
+    with open(output_yaml, "w", encoding="utf-8") as f:
         yaml.dump(data, f, allow_unicode=True)
         
 def save_as_json(G, output_json):
