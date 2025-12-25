@@ -6,6 +6,7 @@ from collections import deque
 import networkx as nx
 import json
 from typing import Dict, Any, Optional
+import re 
 
 # ---------- 設定 ----------
 CROSSREF_BASE = "https://api.crossref.org/works/"
@@ -52,6 +53,33 @@ def load_graph(path_graph:str="graph.json"):
     with open(path_graph, "r", encoding="utf-8") as f:
         data = json.load(f)
     return json_graph.node_link_graph(data, edges = "edges")
+
+def _slugify_title(title: str, max_len: int = 80) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    return (s[:max_len] or "untitled")
+
+def _extract_ref_title_authors_year(ref: dict):
+    title = ref.get("article-title") or ref.get("title") or ref.get("unstructured") or ref.get("journal-title")
+    if isinstance(title, list):
+        title = title[0] if title else None
+    if title:
+        title = title.strip()
+
+    raw_author = ref.get("author") or ""
+    if isinstance(raw_author, list):
+        raw_author = ";".join([str(a) for a in raw_author])
+    authors = [p.strip() for p in re.split(r";|,|&| and ", str(raw_author)) if p.strip()]
+
+    year = ref.get("year") or ref.get("year-suffix")
+    try:
+        year = int(year) if year else None
+    except Exception:
+        year = None
+    if year is None and isinstance(ref.get("unstructured"), str):
+        m = re.search(r"(19|20)\d{2}", ref["unstructured"])
+        year = int(m.group(0)) if m else None
+    return title, authors, year
+
 
 # ---------- ネットワークリクエスト（内部） ----------
 async def _http_get_json(session: aiohttp.ClientSession, url: str, timeout_s=REQUEST_TIMEOUT):
@@ -182,17 +210,22 @@ async def bfs_build_graph_async(start_doi: str,
             # 並列に metadata を取る
             tasks = []
             for doi, depth, from_doi, role in batch:
-                tasks.append((doi, depth, from_doi, role,
-                              asyncio.create_task(fetch_metadata_async(session, doi, sem))))
+                fetch_task = None if doi.startswith("title:") else asyncio.create_task(fetch_metadata_async(session, doi, sem))
+                tasks.append((doi, depth, from_doi, role, fetch_task))
 
             # await all metadata
             for doi, depth, from_doi, role, task in tasks:
-                resp = await task  # fetch_metadata_async 内で sem を使っている
                 # メタが取れない場合もある -> 最低ノードは作る
                 meta_msg = None
+                resp = await task if task else None
                 if resp and isinstance(resp, dict):
                     # Crossref returns {"message": {...}}
                     meta_msg = resp.get("message", {})
+                # fallback: if fetch failed but cache has a placeholder (e.g., title:...)
+                if not meta_msg and doi in meta_cache:
+                    cached = meta_cache.get(doi, {})
+                    if isinstance(cached, dict):
+                        meta_msg = cached.get("message", {})
                 # ノード追加（role/from_doi をノード属性として残す）
                 if doi not in G:
                     # 抜き出し：title, authors, year, journal
@@ -208,6 +241,9 @@ async def bfs_build_graph_async(start_doi: str,
                         year = meta_msg.get("issued", {}).get("date-parts", [[None]])[0][0]
                         container = meta_msg.get("container-title", [])
                         journal = container[0] if container else ""
+                    # derive a readable title for placeholder nodes if still missing
+                    if (not title or title == "Unknown") and doi.startswith("title:"):
+                        title = doi.replace("title:", "").replace("-", " ")
                     G.add_node(doi, doi=doi, title=title or "Unknown",
                         authors=authors, year=year, journal=journal,
                         roles=[(role, from_doi)])
@@ -239,6 +275,25 @@ async def bfs_build_graph_async(start_doi: str,
                         for r in refs:
                             if "DOI" in r:
                                 child = r["DOI"].lower()
+                                if child not in seen:
+                                    seen.add(child)
+                                    q.append((child, depth + 1, doi, "reference"))
+                            else:
+                                title, authors_ref, year_ref = _extract_ref_title_authors_year(r)
+                                if not title:
+                                    continue
+                                child = f"title:{_slugify_title(title)}"
+                                if year_ref:
+                                    child = f"{child}-{year_ref}"
+                                if child not in meta_cache:
+                                    meta_cache[child] = {
+                                        "message": {
+                                            "title": [title],
+                                            "author": [{"family": a} for a in authors_ref] if authors_ref else [],
+                                            "issued": {"date-parts": [[year_ref]]} if year_ref else {},
+                                            "container-title": []
+                                        }
+                                    }
                                 if child not in seen:
                                     seen.add(child)
                                     q.append((child, depth + 1, doi, "reference"))
@@ -307,9 +362,14 @@ def visualize_with_sidebar(G, output_html = "graph.html"):
         <ul>
         {% for doi, data in nodes %}
           <li>
-            <b>{{ data.title }}</b> ({{ data.year }})<br>
-            {{ data.authors|join(", ") }}<br>
-            <a href="https://doi.org/{{ doi }}">{{ doi }}</a>
+                        {% set doi_val = data.get('doi') or doi %}
+                        {% if doi_val and doi_val.startswith('10.') %}
+                            <b>{{ data.title }}</b> ({{ data.year }})<br>
+                            {{ data.authors|join(", ") }}<br>
+                            <a href="https://doi.org/{{ doi_val }}">{{ doi_val }}</a>
+                        {% else %}
+                            <b>{{ data.title or doi }}</b>
+                        {% endif %}
           </li>
         {% endfor %}
         </ul>
